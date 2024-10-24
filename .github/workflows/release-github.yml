@@ -1,0 +1,66 @@
+name: release-github
+
+on:
+  push:
+    tags:
+      - v*
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    permissions:
+      contents: write  # for goreleaser/goreleaser-action to create a GitHub release
+    name: Release Notation Binaries
+    runs-on: ubuntu-20.04
+    strategy:
+      matrix:
+        go-version: ['1.20']
+      fail-fast: true
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.19
+        env:
+          GOPATH: ${{ env.HOME }}
+      - name: Set GoReleaser Previous Tag To Be Last Non Weekly Release
+        run: |
+          pre_tag=`git tag --sort=-creatordate --list 'v*' | grep -v dev | head -2 | tail -1`
+          echo "GORELEASER_PREVIOUS_TAG=$pre_tag" >> $GITHUB_ENV
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@286f3b13b1b49da4ac219696163fb8c1c93e1200 # v6.0.0
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GOPATH: ${{ env.HOME }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@286f3b13b1b49da4ac219696163fb8c1c93e1200 # v6.0.0
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GOPATH: ${{ env.HOME }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: 'mozillazg/alibabacloud-oidc-auth@v1'
+        with:
+          role-arn-to-assume: '${{ secrets.ALIBABA_CLOUD_RAM_ROLE_ARN }}'
+          oidc-provider-arn: '${{ secrets.ALIBABA_CLOUD_RAM_OIDC_ARN }}'
+          export-environment-variables: 'true'
+      - run: |
+          set -e
+          cd ci/ossutil && go build && \
+            chmod +x ossutil && cp ossutil ../../cputil && cd ../../
+          ./cputil --endpoint=oss-cn-hangzhou.aliyuncs.com \
+                   --bucket '${{ secrets.OSS_BUCKET_NAME }}' \
+                   --objectdir '${{ secrets.OSS_OBJECT_DIR }}/${{ github.ref_name }}' \
+                   dist/notation-alibabacloud-secretmanager*.tar.gz dist/checksums.txt
