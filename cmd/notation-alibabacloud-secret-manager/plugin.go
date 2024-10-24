@@ -98,7 +98,6 @@ func (p *AlibabaCloudSecretManagerPlugin) DescribeKey(_ context.Context, req *pl
 }
 
 func (p *AlibabaCloudSecretManagerPlugin) GenerateSignature(_ context.Context, req *plugin.GenerateSignatureRequest) (*plugin.GenerateSignatureResponse, error) {
-
 	messageType := "RAW"
 	signRequest := &dkms.SignRequest{
 		KeyId:       tea.String(req.KeyID),
@@ -108,6 +107,8 @@ func (p *AlibabaCloudSecretManagerPlugin) GenerateSignature(_ context.Context, r
 	runtimeOptions := &dedicatedkmsopenapiutil.RuntimeOptions{
 		IgnoreSSL: tea.Bool(true),
 	}
+
+	rawCertChain := make([][]byte, 0)
 	//set instance ca from file
 	caFilePath := sm.GetKMSCAFile()
 	if caFilePath != "" {
@@ -143,6 +144,7 @@ func (p *AlibabaCloudSecretManagerPlugin) GenerateSignature(_ context.Context, r
 	log.Logger.Infof("sign response is %s", signResponse.String())
 	var certChain []*x509.Certificate
 	if caCertsPath, ok := req.PluginConfig[CaCerts]; ok {
+		//for imported key
 		caCertPEMBlock, err := os.ReadFile(caCertsPath)
 		if err != nil {
 			log.Logger.Errorf("Failed to read ca_certs from %s, err %v", caCertsPath, err)
@@ -153,32 +155,26 @@ func (p *AlibabaCloudSecretManagerPlugin) GenerateSignature(_ context.Context, r
 			log.Logger.Errorf("Failed to parse ca_certs from %s, err %v", caCertsPath, err)
 			return nil, err
 		}
+		// build raw cert chain
+		for _, cert := range certChain {
+			rawCertChain = append(rawCertChain, cert.Raw)
+		}
 	} else {
-		//getPublicKeyRequest := &dkms.GetPublicKeyRequest{
-		//	KeyId: tea.String(req.KeyID),
-		//}
-		//publicKeyResponse, err := p.DedicatedClient.GetPublicKeyWithOptions(getPublicKeyRequest, runtimeOptions)
-		//if err != nil {
-		//	log.Logger.Errorf("Failed to get public key from KMS service, err %v", err)
-		//	return nil, err
-		//}
-		//log.Logger.Infof("public key response is %s", tea.StringValue(publicKeyResponse.PublicKey))
-		//
-		//certChain, err := sm.ParseCertificates(tea.StringValue(publicKeyResponse.PublicKey))
-		//if err != nil {
-		//	log.Logger.Errorf("Failed to parse public key response, err %v", err)
-		//	return nil, err
-		//}
-
-		log.Logger.Errorf("Can not find ca_certs in plugin-config")
-		return nil, errors.New("No ca_certs parameter given in plugin-config")
+		//for kms self generated key
+		pub, err := sm.GetPublicKey(p.DedicatedClient, req.KeyID)
+		if err != nil {
+			log.Logger.Errorf("Failed to get the public key from the given kms key %s, err %v", req.KeyID, err)
+			return nil, err
+		}
+		//get cert data based on the given key id
+		certData, err := sm.GetCertDataFromKey(p.DedicatedClient, pub, req.KeyID)
+		if err != nil {
+			log.Logger.Errorf("Failed to parse ca_certs from %s, err %v", caCertsPath, err)
+			return nil, err
+		}
+		rawCertChain = append(rawCertChain, certData)
 	}
 
-	// build raw cert chain
-	rawCertChain := make([][]byte, 0, len(certChain))
-	for _, cert := range certChain {
-		rawCertChain = append(rawCertChain, cert.Raw)
-	}
 	return &plugin.GenerateSignatureResponse{
 		KeyID:            req.KeyID,
 		Signature:        signResponse.Signature,
@@ -217,10 +213,10 @@ func (p *AlibabaCloudSecretManagerPlugin) VerifySignature(_ context.Context, req
 func (p *AlibabaCloudSecretManagerPlugin) GetMetadata(_ context.Context, _ *plugin.GetMetadataRequest) (*plugin.GetMetadataResponse, error) {
 	return &plugin.GetMetadataResponse{
 		SupportedContractVersions: []string{plugin.ContractVersion},
-		Name:                      "notation-alibabacloud.secretmanager.plugin",
+		Name:                      "alibabacloud.secretmanager.plugin",
 		Description:               "Alibaba Cloud Secret Manager signer plugin for Notation",
-		URL:                       "https://github.com/AliyunContainerService/notation-alibabacloud-secret-manager",
-		Version:                   "0.1.0",
+		URL:                       "https://example.com/notation/plugin",
+		Version:                   "0.0.1",
 		Capabilities: []plugin.Capability{
 			plugin.CapabilitySignatureGenerator,
 			plugin.CapabilityTrustedIdentityVerifier},
