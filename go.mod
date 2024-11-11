@@ -1,6 +1,8 @@
 module github.com/AliyunContainerService/notation-alibabacloud-secret-manager
 
-go 1.20
+go 1.21
+
+toolchain go1.23.2
 
 require (
 	github.com/AliyunContainerService/ack-ram-tool v0.18.1

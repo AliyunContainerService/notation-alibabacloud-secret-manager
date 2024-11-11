@@ -7,10 +7,8 @@ ifeq ($(GIT_TAG),) # unreleased build
     GIT_STATUS     = $(shell test -n "`git status --porcelain`" && echo "dirty" || echo "unreleased")
 	BUILD_METADATA = $(GIT_COMMIT).$(GIT_STATUS)
 endif
-LDFLAGS=-buildid= -X sigs.k8s.io/release-utils/version.gitVersion=$(GIT_VERSION) \
-        -X sigs.k8s.io/release-utils/version.gitCommit=$(GIT_HASH) \
-        -X sigs.k8s.io/release-utils/version.gitTreeState=$(GIT_TREESTATE) \
-        -X sigs.k8s.io/release-utils/version.buildDate=$(BUILD_DATE)
+LDFLAGS=-buildid= -X github.com/AliyunContainerService/notation-alibabacloud-secret-manager/internal/version.Version=$(GIT_TAG) \
+        -X github.com/AliyunContainerService/notation-alibabacloud-secret-manager/internal/version.GitCommit=$(GIT_COMMIT)
 
 GO_BUILD_FLAGS = --ldflags="$(LDFLAGS)"
 
