@@ -23,4 +23,7 @@ go.work
 # Ide file
 .idea/
 
+
 dist/
+
+bin/notation-alibabacloud.secretmanager.plugin
