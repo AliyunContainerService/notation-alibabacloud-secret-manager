@@ -19,6 +19,8 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"os"
+
 	"github.com/AliyunContainerService/ack-ram-tool/pkg/ctl/common"
 	"github.com/AliyunContainerService/notation-alibabacloud-secret-manager/internal/crypto"
 	"github.com/AliyunContainerService/notation-alibabacloud-secret-manager/internal/log"
@@ -30,13 +32,12 @@ import (
 	dedicatedkmsopenapiutil "github.com/aliyun/alibabacloud-dkms-gcs-go-sdk/openapi-util"
 	dkms "github.com/aliyun/alibabacloud-dkms-gcs-go-sdk/sdk"
 	"github.com/notaryproject/notation-plugin-framework-go/plugin"
-	"os"
 )
 
 const (
-	PluginName = "notation"
-	CaCerts    = "ca_certs"
-	DefaultURL = "https://github.com/AliyunContainerService/notation-alibabacloud-secret-manager"
+	PluginName    = "notation"
+	CaCerts       = "ca_certs"
+	CertOutputDir = "output_cert_dir"
 )
 
 type AlibabaCloudSecretManagerPlugin struct {
@@ -174,6 +175,12 @@ func (p *AlibabaCloudSecretManagerPlugin) GenerateSignature(_ context.Context, r
 			log.Logger.Errorf("Failed to parse ca_certs from %s, err %v", caCertsPath, err)
 			return nil, err
 		}
+		err = sm.CertDataOutput(certData, req.PluginConfig[CertOutputDir])
+		if err != nil {
+			log.Logger.Errorf("Failed to parse ca_certs from %s, err %v", caCertsPath, err)
+			return nil, err
+		}
+
 		rawCertChain = append(rawCertChain, certData)
 	}
 
@@ -217,7 +224,7 @@ func (p *AlibabaCloudSecretManagerPlugin) GetMetadata(_ context.Context, _ *plug
 		SupportedContractVersions: []string{plugin.ContractVersion},
 		Name:                      "alibabacloud.secretmanager.plugin",
 		Description:               "Alibaba Cloud Secret Manager signer plugin for Notation",
-		URL:                       DefaultURL,
+		URL:                       "https://example.com/notation/plugin",
 		Version:                   version.Version,
 		Capabilities: []plugin.Capability{
 			plugin.CapabilitySignatureGenerator,

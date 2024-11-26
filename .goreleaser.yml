@@ -22,8 +22,8 @@ builds:
     binary: notation-alibabacloud.secretmanager.plugin
     ldflags:
       - -extldflags "-static"
-      - -X github.com/AliyunContainerService/notation-alibabacloud-secret-manager/pkg/version.Version={{.Version}}
-      - -X github.com/AliyunContainerService/notation-alibabacloud-secret-manager/pkg/version.GitCommit={{.Commit}}
+      - -X github.com/AliyunContainerService/notation-alibabacloud-secret-manager/internal/version.Version={{.Version}}
+      - -X github.com/AliyunContainerService/notation-alibabacloud-secret-manager/internal/version.CommitID={{.Commit}}
 archives:
   - format: tar.gz
     # this name template makes the OS and Arch compatible with the results of `uname`.
